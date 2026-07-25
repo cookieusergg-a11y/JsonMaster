@@ -1,31 +1,42 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const Code = require('../models/Code');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
-function checkTelegramHash(data, botToken) {
-  const { hash, ...rest } = data;
-  const secret = crypto.createHash('sha256').update(botToken).digest();
-  const checkString = Object.keys(rest).sort().map(k => `${k}=${rest[k]}`).join('\n');
-  const hmac = crypto.createHmac('sha256', secret).update(checkString).digest('hex');
-  return hmac === hash;
-}
+// --- генерация кода для бота ---
+router.post('/generate-code', async (req, res) => {
+  const { telegramId } = req.body;
+  if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
-router.post('/telegram-login', async (req, res) => {
-  const { id, first_name, last_name, username, photo_url, hash, auth_date } = req.body;
-  if (!checkTelegramHash({ id, first_name, last_name, username, photo_url, auth_date, hash }, process.env.TELEGRAM_BOT_TOKEN)) {
-    return res.status(401).json({ error: 'Invalid hash' });
-  }
-  const telegramId = String(id);
+  await Code.findOneAndDelete({ telegramId });
+
+  const code = crypto.randomBytes(4).toString('hex');
+  const newCode = new Code({ telegramId, code });
+  await newCode.save();
+
+  res.json({ code });
+});
+
+// --- регистрация по коду ---
+router.post('/register-with-code', async (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: 'code required' });
+
+  const codeDoc = await Code.findOne({ code });
+  if (!codeDoc) return res.status(404).json({ error: 'Invalid or expired code' });
+
+  const telegramId = codeDoc.telegramId;
+
   let user = await User.findOne({ telegramId });
   if (!user) {
     user = new User({
       telegramId,
-      username: username || '',
-      firstName: first_name || '',
-      lastName: last_name || '',
-      photoUrl: photo_url || '',
+      username: '',
+      firstName: '',
+      lastName: '',
+      photoUrl: '',
       subscription: 'trial',
       trialStart: new Date(),
       trialEnd: new Date(+new Date() + 7*24*60*60*1000)
@@ -37,12 +48,15 @@ router.post('/telegram-login', async (req, res) => {
     }
     await user.save();
   } else {
-    user.username = username || user.username;
-    user.firstName = first_name || user.firstName;
-    user.lastName = last_name || user.lastName;
-    user.photoUrl = photo_url || user.photoUrl;
-    await user.save();
+    // если уже есть, обновляем пробную подписку
+    if (user.subscription === 'trial') {
+      user.trialEnd = new Date(+new Date() + 7*24*60*60*1000);
+      await user.save();
+    }
   }
+
+  await Code.findByIdAndDelete(codeDoc._id);
+
   const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
   res.json({ token, user: { ...user.toObject(), password: undefined } });
 });
