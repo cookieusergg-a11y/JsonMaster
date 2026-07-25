@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: '/api',
 });
 
 api.interceptors.request.use(config => {
@@ -10,7 +10,7 @@ api.interceptors.request.use(config => {
   return config;
 });
 
-export const loginWithTelegram = (data) => api.post('/auth/telegram-login', data);
+export const loginWithCode = (data) => api.post('/auth/register-with-code', data);
 export const getSubscriptionStatus = () => api.get('/subscription/status');
 export const checkPro = () => api.get('/subscription/check');
 export const getEditorConfig = () => api.get('/editor/config');
