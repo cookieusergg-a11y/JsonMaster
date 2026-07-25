@@ -1,38 +1,52 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginWithTelegram } from '../api';
+import { loginWithCode } from '../api';
 
 export default function Login() {
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const containerRef = useRef();
 
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://telegram.org/js/telegram-widget.js?22';
-    script.async = true;
-    script.setAttribute('data-telegram-login', 'JsonMasterRubot');
-    script.setAttribute('data-size', 'large');
-    script.setAttribute('data-auth-url', 'http://localhost:5000/api/auth/telegram-login');
-    script.setAttribute('data-request-access', 'write');
-    containerRef.current.appendChild(script);
-
-    window.onTelegramAuth = async (user) => {
-      try {
-        const res = await loginWithTelegram(user);
-        localStorage.setItem('token', res.data.token);
-        localStorage.setItem('user', JSON.stringify(res.data.user));
-        navigate('/editor');
-      } catch (e) {
-        alert('Ошибка авторизации');
-      }
-    };
-  }, [navigate]);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!code.trim()) return alert('Введите код');
+    setLoading(true);
+    try {
+      const res = await loginWithCode({ code });
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+      navigate('/editor');
+    } catch (err) {
+      alert('Ошибка: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div style={{ textAlign: 'center', marginTop: 100 }}>
       <h1>JsonMaster</h1>
-      <p>Войдите через Telegram</p>
-      <div ref={containerRef}></div>
+      <p>Введите код, полученный от бота</p>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          placeholder="Например: a1b2c3d4"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          style={{ padding: '10px', width: '250px', fontSize: '16px' }}
+        />
+        <br />
+        <button
+          type="submit"
+          disabled={loading}
+          style={{ marginTop: '15px', padding: '10px 30px', fontSize: '16px' }}
+        >
+          {loading ? 'Проверка...' : 'Войти'}
+        </button>
+      </form>
+      <p style={{ marginTop: 20, fontSize: '14px', color: '#888' }}>
+        Напишите боту <strong>@JsonMasterRubot</strong> команду <strong>/start</strong>
+      </p>
     </div>
   );
 }
