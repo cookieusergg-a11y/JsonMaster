@@ -11,6 +11,8 @@ api.interceptors.request.use(config => {
 });
 
 export const loginWithCode = (data) => api.post('/auth/register-with-code', data);
+export const adminLogin = (data) => api.post('/auth/admin-login', data);
+
 export const getSubscriptionStatus = () => api.get('/subscription/status');
 export const checkPro = () => api.get('/subscription/check');
 export const getEditorConfig = () => api.get('/editor/config');
