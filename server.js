@@ -11,18 +11,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- API роуты ---
-const authRoutes = require('./backend/routes/auth');
-const subRoutes = require('./backend/routes/subscription');
-const adminRoutes = require('./backend/routes/admin');
-const editorRoutes = require('./backend/routes/editor');
+// Подключаем роуты из папки backend
+app.use('/api/auth', require('./backend/routes/auth'));
+app.use('/api/subscription', require('./backend/routes/subscription'));
+app.use('/api/admin', require('./backend/routes/admin'));
+app.use('/api/editor', require('./backend/routes/editor'));
 
-app.use('/api/auth', authRoutes);
-app.use('/api/subscription', subRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/editor', editorRoutes);
-
-// --- Раздача статики фронтенда (после сборки) ---
+// Раздача статики фронтенда (после сборки)
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, 'frontend/dist')));
   app.get('*', (req, res) => {
@@ -30,7 +25,6 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// --- Подключение к БД ---
 mongoose.connect(MONGO_URI)
   .then(() => {
     console.log('✅ MongoDB connected');
