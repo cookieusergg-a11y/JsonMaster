@@ -14,12 +14,22 @@ bot.onText(/\/start/, async (msg) => {
   const telegramId = String(chatId);
 
   try {
-    const response = await axios.post('https://jsonmaster-production.up.railway.app/api/auth/generate-code', { telegramId });
+    // Используем домен твоего основного сервиса
+    const apiUrl = 'https://jsonmaster.up.railway.app/api/auth/generate-code';
+    const response = await axios.post(apiUrl, { telegramId }, { timeout: 10000 });
     const code = response.data.code;
-    bot.sendMessage(chatId, `🔑 Ваш код: ${code}\n⏳ Действителен 10 минут.`);
+    if (code) {
+      bot.sendMessage(chatId, `🔑 Ваш код: ${code}\n⏳ Действителен 10 минут.`);
+    } else {
+      bot.sendMessage(chatId, '❌ Не удалось получить код. Попробуйте позже.');
+    }
   } catch (error) {
     console.error('❌ Ошибка запроса к API:', error.message);
-    bot.sendMessage(chatId, '❌ Не удалось получить код. Попробуйте позже.');
+    let errorMsg = '❌ Не удалось получить код. Попробуйте позже.';
+    if (error.response) {
+      errorMsg += `\nОшибка сервера: ${error.response.status}`;
+    }
+    bot.sendMessage(chatId, errorMsg);
   }
 });
 
